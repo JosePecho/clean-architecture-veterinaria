@@ -1,0 +1,12 @@
+# Datos generados por bin/seed.php y por la app (no versionar)
+/data/
+
+# Material de lectura del curso (no es parte del proyecto)
+/Capa_Dominio_Clean_Architecture.pdf
+
+# Varios
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
