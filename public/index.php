@@ -21,6 +21,7 @@ use Vetcare\Dominio\CasoDeUso\AgendarCita;
 use Vetcare\Dominio\CasoDeUso\AtenderCita;
 use Vetcare\Dominio\CasoDeUso\CancelarCita;
 use Vetcare\Dominio\CasoDeUso\ConfirmarCita;
+use Vetcare\Dominio\CasoDeUso\RegistrarFichaDeMascota;
 use Vetcare\Dominio\CasoDeUso\ReprogramarCita;
 use Vetcare\Dominio\Servicio\AgendaDelVeterinario;
 use Vetcare\Dominio\Servicio\CalculadoraDeTarifa;
@@ -30,7 +31,9 @@ use Vetcare\Infraestructura\Evento\Listener\EnviarRecordatorioAlDueno;
 use Vetcare\Infraestructura\Evento\Listener\LiberarCupoEnAgenda;
 use Vetcare\Infraestructura\Evento\Listener\RegistrarEnHistoriaClinica;
 use Vetcare\Infraestructura\Evento\RegistroDeNotificaciones;
+use Vetcare\Infraestructura\Foto\SubidorDeFotosLocal;
 use Vetcare\Infraestructura\Persistencia\Archivo\CitaArchivoRepository;
+use Vetcare\Infraestructura\Persistencia\Archivo\FichaMascotaArchivoRepository;
 use Vetcare\Infraestructura\Persistencia\Archivo\MascotaArchivoRepository;
 use Vetcare\Infraestructura\Persistencia\Archivo\VeterinarioArchivoRepository;
 use Vetcare\Infraestructura\Reloj\RelojDelSistema;
@@ -41,11 +44,17 @@ date_default_timezone_set('America/Lima');
 session_start();
 
 $dirDatos = __DIR__ . '/../data';
+$dirUploads = __DIR__ . '/uploads/mascotas';
+if (!is_dir($dirUploads)) {
+    mkdir($dirUploads, 0777, true);
+}
 
-/* --- CAPA DE INFRAESTRUCTURA: repositorios en archivos .txt, reloj, eventos --- */
+/* --- CAPA DE INFRAESTRUCTURA: repositorios en archivos .txt, reloj, eventos, fotos --- */
 $repoMascotas = new MascotaArchivoRepository($dirDatos);
 $repoVeterinarios = new VeterinarioArchivoRepository($dirDatos);
 $repoCitas = new CitaArchivoRepository($dirDatos);
+$repoFichas = new FichaMascotaArchivoRepository($dirDatos);
+$subidorFotos = new SubidorDeFotosLocal($dirUploads, '/uploads/mascotas');
 
 $reloj = new RelojDelSistema();
 
@@ -61,6 +70,7 @@ $despachador->suscribir('cita.completada', new RegistrarEnHistoriaClinica($emiti
 /* --- CAPA DE DOMINIO: Domain Services + Use Cases --- */
 $agenda = new AgendaDelVeterinario();
 $tarifas = new CalculadoraDeTarifa();
+$registrarFicha = new RegistrarFichaDeMascota($repoFichas, $subidorFotos);
 
 $servicio = new ServicioDeCitas(
     new AgendarCita($repoMascotas, $repoVeterinarios, $repoCitas, $agenda, $tarifas, $despachador, $reloj),
@@ -71,6 +81,8 @@ $servicio = new ServicioDeCitas(
     $repoCitas,
     $repoMascotas,
     $repoVeterinarios,
+    $repoFichas,
+    $registrarFicha,
 );
 
 /* --- CAPA DE PRESENTACION --- */

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Vetcare\Presentacion\Web;
 
 use InvalidArgumentException;
+use RuntimeException;
 use Vetcare\Aplicacion\DTO\AgendarCitaRequest;
 use Vetcare\Aplicacion\Servicio\ServicioDeCitas;
 use Vetcare\Dominio\Excepcion\RecursoNoEncontrado;
@@ -38,6 +39,14 @@ final class ControladorWebDeCitas
                         $this->campo($datos, 'motivo'),
                     ))->id,
                 )),
+                'registrar_ficha' => $this->hecho(
+                    fn () => $this->servicio->registrarFichaDeMascota(
+                        $this->campo($datos, 'mascota'),
+                        $datos,
+                        $_FILES['foto'] ?? null,
+                    ),
+                    'Ficha de la mascota guardada con exito.',
+                ),
                 'confirmar' => $this->hecho(
                     fn () => $this->servicio->confirmar($this->campo($datos, 'id')),
                     'Cita confirmada.',
@@ -56,7 +65,7 @@ final class ControladorWebDeCitas
                 ),
                 default => $this->error("Accion desconocida: \"{$accion}\"."),
             };
-        } catch (ReglaDeNegocioViolada | RecursoNoEncontrado | InvalidArgumentException $e) {
+        } catch (ReglaDeNegocioViolada | RecursoNoEncontrado | InvalidArgumentException | RuntimeException $e) {
             return $this->error($e->getMessage());
         }
     }

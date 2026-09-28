@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Vetcare\Presentacion\Web;
 
 use Vetcare\Aplicacion\DTO\CitaDTO;
+use Vetcare\Aplicacion\DTO\MascotaDTO;
 
 /**
  * Capa de Presentacion: arma el documento HTML completo.
@@ -14,10 +15,10 @@ final class PaginaCitas
 {
     /**
      * @param CitaDTO[]                              $citas
-     * @param array<string, string>                 $mascotas
-     * @param array<string, string>                 $veterinarios
-     * @param array<string, string>                 $motivos
-     * @param string[]                              $notificaciones
+     * @param array<string, MascotaDTO>              $mascotas
+     * @param array<string, string>                  $veterinarios
+     * @param array<string, string>                  $motivos
+     * @param string[]                               $notificaciones
      * @param array{tipo: string, mensaje: string}|null $flash
      */
     public function render(
@@ -42,10 +43,16 @@ final class PaginaCitas
             ? '<li class="vacio">Sin eventos todavia.</li>'
             : implode('', array_map(fn (string $n): string => '<li>' . $this->e($n) . '</li>', $notificaciones));
 
-        $optMascotas = $this->opciones($mascotas);
+        $optMascotas = $this->opcionesMascotas($mascotas);
         $optVeterinarios = $this->opciones($veterinarios);
         $optMotivos = $this->opciones($motivos);
         $estilos = $this->estilos();
+
+        $tarjetasMascotas = $mascotas === []
+            ? '<p class="vacio">Todavia no hay mascotas registradas.</p>'
+            : '<div class="mascotas-grid">'
+                . implode('', array_map($this->tarjetaMascota(...), $mascotas))
+                . '</div>';
 
         return <<<HTML
 <!doctype html>
@@ -53,7 +60,7 @@ final class PaginaCitas
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Clinica Veterinaria - Citas</title>
+<title>Clinica Veterinaria - Citas y Fichas</title>
 <style>{$estilos}</style>
 </head>
 <body>
@@ -64,6 +71,57 @@ final class PaginaCitas
   </header>
 
   {$banner}
+
+  <section class="tarjeta">
+    <h2>Registrar ficha de mascota</h2>
+    <form method="post" action="" enctype="multipart/form-data" class="form-mascota">
+      <input type="hidden" name="accion" value="registrar_ficha">
+
+      <label>Mascota
+        <select name="mascota" required>{$optMascotas}</select>
+      </label>
+
+      <label>Nombre
+        <input type="text" name="nombre" placeholder="Nombre de referencia">
+      </label>
+
+      <label>Sexo
+        <select name="sexo" required>
+          <option value="macho">Macho</option>
+          <option value="hembra">Hembra</option>
+        </select>
+      </label>
+
+      <label>Peso (kg)
+        <input type="number" name="peso_kg" step="0.01" min="0.01" max="200" required>
+      </label>
+
+      <label>Esterilizado
+        <select name="esterilizado" required>
+          <option value="no">No</option>
+          <option value="si">Si</option>
+        </select>
+      </label>
+
+      <label>Color de pelaje
+        <input type="text" name="color_pelaje" required>
+      </label>
+
+      <label>Microchip (opcional)
+        <input type="text" name="microchip" placeholder="Ej. 981098123456789">
+      </label>
+
+      <label>Alergias (opcional)
+        <textarea name="alergias" rows="2" placeholder="Ej. Alergia a medicamentos o comida..."></textarea>
+      </label>
+
+      <label>Foto de la mascota
+        <input type="file" name="foto" accept="image/jpeg,image/png,image/webp">
+      </label>
+
+      <button type="submit" class="primario">Guardar ficha de mascota</button>
+    </form>
+  </section>
 
   <section class="tarjeta">
     <h2>Agendar una cita</h2>
@@ -83,6 +141,11 @@ final class PaginaCitas
       </label>
       <button type="submit" class="primario">Agendar cita</button>
     </form>
+  </section>
+
+  <section class="tarjeta">
+    <h2>Mascotas registradas</h2>
+    {$tarjetasMascotas}
   </section>
 
   <section class="tarjeta">
@@ -109,6 +172,40 @@ final class PaginaCitas
 </body>
 </html>
 HTML;
+    }
+
+    private function tarjetaMascota(MascotaDTO $m): string
+    {
+        $foto = $m->fotoUrl !== null && $m->fotoUrl !== ''
+            ? '<img class="foto-mascota" src="' . $this->e($m->fotoUrl) . '" alt="' . $this->e($m->nombre) . '">'
+            : '<div class="foto-mascota sin-foto">Sin foto</div>';
+
+        $microchip = $m->microchip !== null && $m->microchip !== ''
+            ? $this->e($m->microchip)
+            : '—';
+
+        $alergias = $m->alergias !== null && $m->alergias !== ''
+            ? $this->e($m->alergias)
+            : 'Ninguna';
+
+        $sexo = $m->sexo !== '' ? $this->e($m->sexo) : '—';
+        $peso = $m->pesoKg > 0 ? $this->e((string) $m->pesoKg) . ' kg' : '—';
+        $pelaje = $m->colorPelaje !== '' ? $this->e($m->colorPelaje) : '—';
+
+        return '<article class="mascota">'
+            . $foto
+            . '<div class="mascota-datos">'
+            .   '<h3>' . $this->e($m->nombre) . '</h3>'
+            .   '<ul>'
+            .     '<li><strong>Sexo:</strong> ' . $sexo . '</li>'
+            .     '<li><strong>Peso:</strong> ' . $peso . '</li>'
+            .     '<li><strong>Esterilizado:</strong> ' . ($m->esterilizado ? 'Si' : 'No') . '</li>'
+            .     '<li><strong>Pelaje:</strong> ' . $pelaje . '</li>'
+            .     '<li><strong>Microchip:</strong> ' . $microchip . '</li>'
+            .     '<li><strong>Alergias:</strong> ' . $alergias . '</li>'
+            .   '</ul>'
+            . '</div>'
+            . '</article>';
     }
 
     private function fila(CitaDTO $cita): string
@@ -179,6 +276,17 @@ HTML;
         return $html;
     }
 
+    /** @param array<string, MascotaDTO> $mascotas */
+    private function opcionesMascotas(array $mascotas): string
+    {
+        $html = '';
+        foreach ($mascotas as $id => $m) {
+            $html .= '<option value="' . $this->e((string) $id) . '">' . $this->e($m->nombre) . '</option>';
+        }
+
+        return $html;
+    }
+
     private function e(string $texto): string
     {
         return htmlspecialchars($texto, ENT_QUOTES, 'UTF-8');
@@ -199,10 +307,10 @@ code { background: #e7e9ee; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .flash { margin-top: 16px; padding: 10px 14px; border-radius: 8px; font-weight: 600; }
 .flash-ok { background: #e5f5ea; color: #1c6b3a; border: 1px solid #b6e0c4; }
 .flash-error { background: #fdeaea; color: #a12626; border: 1px solid #f2c2c2; }
-.form-agendar { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; align-items: end; }
-.form-agendar label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #5b6472; }
-.form-agendar button { grid-column: 1 / -1; }
-input, select { padding: 7px 8px; border: 1px solid #c8cdd6; border-radius: 6px; font: inherit; background: #fff; }
+.form-agendar, .form-mascota { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; align-items: end; }
+.form-agendar label, .form-mascota label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #5b6472; }
+.form-agendar button, .form-mascota button { grid-column: 1 / -1; }
+input, select, textarea { padding: 7px 8px; border: 1px solid #c8cdd6; border-radius: 6px; font: inherit; background: #fff; }
 button { padding: 7px 12px; border: 0; border-radius: 6px; background: #2f6b4f; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
 button:hover { background: #275c43; }
 button.primario { background: #1f5fbf; }
@@ -227,7 +335,15 @@ td.acciones input { max-width: 190px; }
 td.acciones button { padding: 5px 9px; font-size: 12px; }
 .notis { margin: 0; padding-left: 18px; font-size: 13px; color: #3b4351; }
 .notis li { margin: 2px 0; }
-@media (max-width: 640px) { .form-agendar { grid-template-columns: 1fr; } }
+.mascotas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.mascota { display: flex; gap: 14px; border: 1px solid #e2e5ea; border-radius: 10px; padding: 12px; background: #fff; align-items: flex-start; }
+.foto-mascota { width: 90px; height: 90px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
+.foto-mascota.sin-foto { display: flex; align-items: center; justify-content: center; background: #e7e9ee; color: #9098a4; font-size: 12px; text-align: center; }
+.mascota-datos { flex: 1; min-width: 0; }
+.mascota-datos h3 { margin: 0 0 6px; font-size: 16px; color: #1f2430; }
+.mascota-datos ul { margin: 0; padding-left: 16px; font-size: 12px; color: #3b4351; }
+.mascota-datos li { margin: 2px 0; }
+@media (max-width: 640px) { .form-agendar, .form-mascota { grid-template-columns: 1fr; } }
 CSS;
     }
 }

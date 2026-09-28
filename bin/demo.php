@@ -20,6 +20,7 @@ use Vetcare\Dominio\CasoDeUso\AgendarCita;
 use Vetcare\Dominio\CasoDeUso\AtenderCita;
 use Vetcare\Dominio\CasoDeUso\CancelarCita;
 use Vetcare\Dominio\CasoDeUso\ConfirmarCita;
+use Vetcare\Dominio\CasoDeUso\RegistrarFichaDeMascota;
 use Vetcare\Dominio\CasoDeUso\ReprogramarCita;
 use Vetcare\Dominio\Modelo\Dueno;
 use Vetcare\Dominio\Modelo\Mascota;
@@ -34,8 +35,10 @@ use Vetcare\Infraestructura\Evento\Listener\AvisarReprogramacion;
 use Vetcare\Infraestructura\Evento\Listener\EnviarRecordatorioAlDueno;
 use Vetcare\Infraestructura\Evento\Listener\LiberarCupoEnAgenda;
 use Vetcare\Infraestructura\Evento\Listener\RegistrarEnHistoriaClinica;
+use Vetcare\Infraestructura\Foto\SubidorDeFotosNulo;
 use Vetcare\Infraestructura\Persistencia\EnMemoria\CitaEnMemoriaRepository;
 use Vetcare\Infraestructura\Persistencia\EnMemoria\DuenoEnMemoriaRepository;
+use Vetcare\Infraestructura\Persistencia\EnMemoria\FichaMascotaEnMemoriaRepository;
 use Vetcare\Infraestructura\Persistencia\EnMemoria\MascotaEnMemoriaRepository;
 use Vetcare\Infraestructura\Persistencia\EnMemoria\VeterinarioEnMemoriaRepository;
 use Vetcare\Infraestructura\Reloj\RelojFijo;
@@ -53,6 +56,7 @@ $repoDuenos = new DuenoEnMemoriaRepository();
 $repoMascotas = new MascotaEnMemoriaRepository();
 $repoVeterinarios = new VeterinarioEnMemoriaRepository();
 $repoCitas = new CitaEnMemoriaRepository();
+$repoFichas = new FichaMascotaEnMemoriaRepository();
 
 // "Sumidero" de los mensajes que producen los listeners: en el demo, la consola.
 $aConsola = static function (string $mensaje): void {
@@ -112,6 +116,7 @@ $confirmarCita = new ConfirmarCita($repoCitas, $despachador);
 $reprogramarCita = new ReprogramarCita($repoCitas, $repoVeterinarios, $agendaDelVeterinario, $despachador, $reloj);
 $cancelarCita = new CancelarCita($repoCitas, $despachador, $reloj);
 $atenderCita = new AtenderCita($repoCitas, $despachador, $reloj);
+$registrarFicha = new RegistrarFichaDeMascota($repoFichas, new SubidorDeFotosNulo());
 
 /* -------------------------------------------------------------------------
  * CAPA DE APLICACION (fachada que orquesta y traduce a DTOs)
@@ -125,6 +130,8 @@ $servicioDeCitas = new ServicioDeCitas(
     $repoCitas,
     $repoMascotas,
     $repoVeterinarios,
+    $repoFichas,
+    $registrarFicha,
 );
 
 /* -------------------------------------------------------------------------
